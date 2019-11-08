@@ -70,6 +70,10 @@ Those commands open a new buffer with all the variables (in the case of `dbgp-ge
 A variable with children (indicated by ` > #children` at the end of the line) can be expanded by hitting `<ret>` while on that line. 
 It can be collapsed by using `u` to undo the expansion
 
+### Clients
+
+All jump commands are executed in the `%opt{jumpclient}` and the variable view is opened in the `%opt{toolsclient}`
+
 ## Extending the script
 
 This script can be extended by defining your own commands. `dbgp` is provided for that purpose: it simply forwards its arguments to the debugging engine. 
