@@ -66,7 +66,7 @@ def dbgp-start %{
         if ! $kak_opt_dbgp_started; then
             mkdir -p $kak_opt_dbgp_dir
             mkfifo "$kak_opt_dbgp_dir"/input_pipe
-            ( tail -f "$kak_opt_dbgp_dir"/input_pipe | python $kak_opt_dbgp_source/dbgp_client.py $kak_opt_dbgp_port $kak_session $kak_client > /tmp/test ) >/dev/null 2>&1 </dev/null &
+            ( tail -f "$kak_opt_dbgp_dir"/input_pipe | python $kak_opt_dbgp_source/dbgp_client.py $kak_opt_dbgp_port $kak_session $kak_client > /tmp/test 2>&1 ) >/dev/null 2>&1 </dev/null &
         fi
     }
     set global dbgp_started true
@@ -84,7 +84,9 @@ def dbgp-start %{
 
 def dbgp-stop %{
     nop %sh{
-        echo "exit()" > "$kak_opt_dbgp_dir"/input_pipe
+        if $kak_opt_dbgp_started; then
+            echo "exit()" > "$kak_opt_dbgp_dir"/input_pipe
+        fi
     }
     set global dbgp_started false
     set global dbgp_program_running false
@@ -95,7 +97,7 @@ def dbgp-stop %{
     set global dbgp_location_info
     eval -buffer * %{
         unset buffer dbgp_location_flag
-        unset buffer dbgp_breakpoint_flags
+        unset buffer dbgp_breakpoints_flags
     }
     rmhl global/dbgp-ref
     rmhooks global dbgp-ref
@@ -411,7 +413,7 @@ def -hidden -params 1 dbgp-refresh-breakpoints-flags %{
                     if [ "$buffer" = "$to_refresh" ]; then
                         line="$3"
                         enabled="$2"
-                        if [ "$enabled" = y ]; then
+                        if [ "$enabled" ]; then
                             flag="$kak_opt_dbgp_breakpoint_active_symbol"
                         else
                             flag="$kak_opt_dbgp_breakpoint_inactive_symbol"

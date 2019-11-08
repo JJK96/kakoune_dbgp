@@ -29,21 +29,25 @@ def handle_response(response):
     tree = parse_response(response)
     pp1(tree)
     if 'command' in tree.attrib:
-        transaction_id = tree.attrib['transaction_id']
-        request = requests[int(transaction_id)]
+        command = tree.attrib['command']
+        transaction_id = int(tree.attrib['transaction_id'])
+        request = requests[transaction_id]
+        del requests[transaction_id]
         print(request)
-        if tree.attrib['command'] == 'property_get':
+        if command == 'property_get':
             if len(tree) > 0:
                 string = pp(tree[0])
                 kak.info(string)
-        elif tree.attrib['command'] == 'context_get':
+        elif command == 'context_get':
             for c in tree:
                 kak.info(pp(c))
-        elif tree.attrib['command'] == 'breakpoint_set':
-            active = True
+        elif command == 'breakpoint_set':
+            active = True #TODO support inactive breakpoints
             line = request['-n']
             filename = request['-f']
-            kak.handle_breakpoint_created(transaction_id, active, line, filename)
+            kak.handle_breakpoint_created(tree.attrib['id'], active, line, filename)
+        elif command == 'breakpoint_remove':
+            kak.handle_breakpoint_deleted(request['-d'])
 
 def receive(conn):
     response = bytes()
@@ -61,7 +65,6 @@ def receive(conn):
 def send(conn, request):
     global i, requests
     requests[i] = parse_request(request)
-    print(requests)
     request += " -i " + str(i) + '\x00'
     request = bytes(request, 'utf-8')
     conn.send(request)
