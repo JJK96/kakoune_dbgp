@@ -116,6 +116,7 @@ A python program is used to forward dbgp commands from kakoune to the debugging 
 
 ## TODO
 
+* support printing variables by selecting them in the code and executing `dbgp-print`
 * support other commands of the dbgp protocol
     * breakpoint modification 
     * evaluation of expressions
