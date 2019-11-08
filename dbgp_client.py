@@ -6,6 +6,9 @@ import base64
 from parsing import *
 import kakoune as kak
 
+# DEBUG
+import traceback
+
 i = 0
 # Save unanswered requests, key=transaction_id, value=request
 requests = {}
@@ -25,7 +28,7 @@ except:
     usage()
 
 def handle_response(response):
-    kak.info(response)
+    kak.debug(response)
     tree = parse_response(response)
     pp1(tree)
     if 'command' in tree.attrib:
@@ -34,20 +37,44 @@ def handle_response(response):
         request = requests[transaction_id]
         del requests[transaction_id]
         print(request)
-        if command == 'property_get':
+        if command == 'status':
+            kak.info(response)
+            return
+        elif command == 'property_get':
             if len(tree) > 0:
-                string = pp(tree[0])
-                kak.info(string)
+                if request['extra']:
+                    indent = int(request['extra'])
+                else:
+                    indent = 0
+                string = pp(tree[0], indent)
+                kak.show_context(string)
+            return
         elif command == 'context_get':
+            string = ""
             for c in tree:
-                kak.info(pp(c))
+                string += pp(c)
+            kak.show_context(string)
+            return
         elif command == 'breakpoint_set':
             active = True #TODO support inactive breakpoints
             line = request['-n']
             filename = request['-f']
             kak.handle_breakpoint_created(tree.attrib['id'], active, line, filename)
+            return
         elif command == 'breakpoint_remove':
             kak.handle_breakpoint_deleted(request['-d'])
+            return
+    if 'status' in tree.attrib:
+        status = tree.attrib['status']
+        if status == 'break':
+            line = tree[0].attrib['lineno']
+            filename = tree[0].attrib['filename']
+            kak.handle_break(line, filename)
+            return
+        if status == 'stopping':
+            kak.handle_stopped()
+            return
+    kak.info(response)
 
 def receive(conn):
     response = bytes()
@@ -63,21 +90,29 @@ def receive(conn):
             response = bytes()
 
 def send(conn, request):
-    global i, requests
-    requests[i] = parse_request(request)
-    request += " -i " + str(i) + '\x00'
-    request = bytes(request, 'utf-8')
-    conn.send(request)
+    global i
+    cmd_string = request['cmd_string'] + " -i " + str(i)
+    if request['data']:
+        cmd_string += ' -- ' + request['data']
+    cmd_string += '\x00'
+    cmd_string = bytes(cmd_string, 'utf-8')
+    conn.send(cmd_string)
     i += 1
+    command = request['command']
+    if command == 'run' or command.startswith('step'):
+        kak.handle_running()
 
 def handle_stdin(conn):
+    global requests
     for line in sys.stdin:
-        if line[:-1] == "exit()":
+        line = line[:-1] # remove newline
+        if line == "exit()":
             sys.exit()
         kak.debug(line)
-        space = line.index(' ')
-        kak.client = line[:space]
-        send(conn, line[space+1:-1]) #remove newline
+        request = parse_request(line)
+        requests[i] = request
+        kak.client = request['client']
+        send(conn, request) 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind(('0.0.0.0', port))

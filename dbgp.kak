@@ -21,8 +21,12 @@ decl bool dbgp_started false
 decl bool dbgp_program_running false
 # the debugged program is currently running, but stopped
 decl bool dbgp_program_stopped false
+# Whether autojump should be enabled
+decl str dbgp_autojump true
 # if not empty, contains the name of client in which the autojump is performed
 decl str dbgp_autojump_client
+# if not empy, contains the name of client in which context (variables) is showed
+decl str dbgp_context_client
 # if not empty, contains the name of client in which the value is printed
 # set by default to the client which started the session
 decl str dbgp_print_client
@@ -34,9 +38,6 @@ decl str-list dbgp_breakpoints_info
 # line file
 decl str-list dbgp_location_info
 # note that these variables may reference locations that are not in currently opened buffers
-
-# list of pending commands that will be executed the next time the process is stopped
-decl -hidden str dbgp_pending_commands
 
 # a visual indicator showing the current state of the script
 decl str dbgp_indicator
@@ -67,6 +68,11 @@ def dbgp-start %{
             mkdir -p $kak_opt_dbgp_dir
             mkfifo "$kak_opt_dbgp_dir"/input_pipe
             ( tail -f "$kak_opt_dbgp_dir"/input_pipe | python $kak_opt_dbgp_source/dbgp_client.py $kak_opt_dbgp_port $kak_session $kak_client > /tmp/test 2>&1 ) >/dev/null 2>&1 </dev/null &
+        fi
+    }
+    eval %sh{
+        if $kak_opt_dbgp_autojump; then
+            echo "dbgp-enable-autojump"
         fi
     }
     set global dbgp_started true
@@ -113,51 +119,44 @@ def dbgp-jump-to-location %{
     }}
 }
 
-def dbgp -params 1.. %{
+# $1 = command and arguments
+# $2 = extra info needed by the python script (usually none)
+def dbgp -params 1..2 %{
     eval %sh{
-        echo "$kak_client $@" > "$kak_opt_dbgp_dir"/input_pipe
+        echo "$kak_client $2 $1" > "$kak_opt_dbgp_dir"/input_pipe
     }
 }
 
-def dbgp-run -params ..    %{ dbgp-cmd "run" }
-def dbgp-step-over         %{ dbgp-cmd "step_over" }
-def dbgp-next              %{ dbgp-cmd "-exec-next" }
-def dbgp-finish            %{ dbgp-cmd "-exec-finish" }
-def dbgp-continue          %{ dbgp-cmd "-exec-continue" }
 def dbgp-set-breakpoint    %{ dbgp-breakpoint-impl false true }
 def dbgp-clear-breakpoint  %{ dbgp-breakpoint-impl true false }
 def dbgp-toggle-breakpoint %{ dbgp-breakpoint-impl true true }
-def dbgp-continue-or-run %{
-   %sh{
-      if [ "$kak_opt_dbgp_program_running" = true ]; then
-         printf "dbgp-continue\n"
-      else
-         printf "dbgp-run\n"
-      fi
-   }
+
+def dbgp-get-context %{
+    dbgp-create-context-buffer
+    dbgp context_get
+}
+
+def dbgp-get-property -params 1 %{
+    dbgp-create-context-buffer
+    dbgp "property_get -n %arg{1}"
+}
+
+def -hidden dbgp-create-context-buffer %{
+    edit -scratch *dbgp-context*
+    set-option buffer filetype dbgp
+    execute-keys \%
 }
 
 # dbgp doesn't tell us in its output what was the expression we asked for, so keep it internally for printing later
 decl -hidden str dbgp_expression_demanded
 
-def dbgp-print -params ..1 %{
-    try %{
-        eval %sh{ [ -z "$1" ] && printf fail }
-        set global dbgp_expression_demanded %arg{1}
-    } catch %{
-        set global dbgp_expression_demanded %val{selection}
-    }
-    dbgp-cmd -data-evaluate-expression "%opt{dbgp_expression_demanded}"
-}
-
 def dbgp-enable-autojump %{
-    try %{
-        eval %sh{ [ "$kak_opt_dbgp_started" = false ] && printf fail }
-        set global dbgp_autojump_client %val{client}
-        dbgp-set-indicator-from-current-state
-    }
+    set global dbgp_autojump true
+    set global dbgp_autojump_client %val{client}
+    dbgp-set-indicator-from-current-state
 }
 def dbgp-disable-autojump %{
+    set global dbgp_autojump false
     set global dbgp_autojump_client ""
     dbgp-set-indicator-from-current-state
 }
@@ -257,68 +256,34 @@ def dbgp-breakpoint-impl -hidden -params 2 %{
                     eval set -- "$kak_opt_dbgp_breakpoints_info"
                     while [ $# -ne 0 ]; do
                         if [ "$4" = "$kak_buffile" ] && [ "$3" = "$cursor_line" ]; then
-                            [ "$delete" = true ] && printf "dbgp breakpoint_remove -d %s\n" "$1"
+                            [ "$delete" = true ] && printf "dbgp %%{breakpoint_remove -d %s}\n" "$1"
                             match_found="true"
                         fi
                         shift 4
                     done
                     if [ "$match_found" = false ] && [ "$create" = true ]; then
-                        printf "dbgp breakpoint_set -t line -f file://%s -n %s\n" "$kak_buffile" "$cursor_line"
+                        printf "dbgp %%{breakpoint_set -t line -f file://%s -n %s}\n" "$kak_buffile" "$cursor_line"
                     fi
                 done
             )
-            if [ "$kak_opt_dbgp_program_running" = false ] ||
-                [ "$kak_opt_dbgp_program_stopped" = true ]
-            then
-                printf "%s\n" "$commands"
-            else
-                printf "set global dbgp_pending_commands '%s'" "$commands"
-            fi
+            printf "%s\n" "$commands"
         }
     }
 }
 
 
-def -hidden -params 2 dbgp-handle-stopped %{
-    try %{
-        dbgp-process-pending-commands
-        dbgp-continue
-    } catch %{
-        set global dbgp_program_stopped true
-        dbgp-set-indicator-from-current-state
-        set global dbgp_location_info  %arg{1} %arg{2}
-        dbgp-refresh-location-flag %arg{2}
-        try %{ eval -client %opt{dbgp_autojump_client} dbgp-jump-to-location }
-    }
-}
-
-def -hidden dbgp-handle-stopped-unknown %{
-    try %{
-        dbgp-process-pending-commands
-        dbgp-continue
-    } catch %{
-        set global dbgp_program_stopped true
-        dbgp-set-indicator-from-current-state
-    }
-}
-
-def -hidden dbgp-handle-exited %{
-    try %{ dbgp-process-pending-commands }
-    set global dbgp_program_running false
-    set global dbgp_program_stopped false
+def -hidden -params 2 dbgp-handle-break %{
+    set global dbgp_program_stopped true
     dbgp-set-indicator-from-current-state
-    dbgp-clear-location
+    set global dbgp_location_info  %arg{1} %arg{2}
+    dbgp-refresh-location-flag %arg{2}
+    try %{ eval -client %opt{dbgp_autojump_client} dbgp-jump-to-location }
 }
 
-def -hidden dbgp-process-pending-commands %{
-    eval %sh{
-        if [ ! -n "$kak_opt_dbgp_pending_commands" ]; then
-            printf fail
-            exit
-        fi
-        printf "%s\n" "$kak_opt_dbgp_pending_commands"
-    }
-    set global dbgp_pending_commands ""
+def -hidden dbgp-handle-stopped %{
+    set global dbgp_program_stopped true
+    set global dbgp_program_running false
+    dbgp-set-indicator-from-current-state
 }
 
 def -hidden dbgp-handle-running %{
@@ -399,6 +364,50 @@ def -hidden -params 4 dbgp-handle-breakpoint-modified-cmd %{
     dbgp-refresh-breakpoints-flags %arg{4}
 }
 
+# Show the current context (variables) in the context buffer
+def -hidden -params 1 dbgp-handle-context %{
+    # User should already be in the context buffer and have the text to be replaced selected
+    evaluate-commands -save-regs '"' -draft %{
+        set-register dquote %arg{1}
+        execute-keys <a-x>R
+    }
+}
+
+def -hidden dbgp-expand-property %{
+    # Reduce to a single selection
+    execute-keys <space>
+    evaluate-commands -save-regs '"a' %{
+        try %{
+            # only execute on properties with children
+            execute-keys '<a-x><a-k>> \d+<ret>'
+            # count leading spaces for indent and cut it to
+            evaluate-commands -draft %{
+                try %{
+                    # select the whitespace
+                    execute-keys 's^ *<ret>'
+                    # check if it is only whitespace that is selected
+                    execute-keys '<a-k>\s<ret>'
+                    # count the characters and store in register a
+                    evaluate-commands %sh{
+                        count=$(printf "$kak_selection" | wc -c)
+                        echo "set-register a $count"
+                    }
+                } catch %{
+                    # No leading whitespace
+                    set-register a 0
+                }
+            }
+            # select and copy the variable
+            execute-keys -save-regs "" 'git<space>y'
+            # expand it
+            # no need to use the dbgp-get-property wrapper since the user is already in the right buffer
+            dbgp "property_get -n %reg{dquote}" %reg{a}
+        } catch %{
+            echo -markup "{Error}Variable has no children to expand"
+        }
+    }
+}
+
 # refresh the breakpoint flags of the file passed as argument
 def -hidden -params 1 dbgp-refresh-breakpoints-flags %{
     # buffer may not exist, so only try
@@ -443,3 +452,21 @@ def -hidden dbgp-clear-breakpoints %{
     eval -buffer * %{ unset buffer dbgp_breakpoints_flags }
     set global dbgp_breakpoints_info
 }
+
+hook global WinSetOption filetype=dbgp %{
+    hook buffer -group dbgp-hooks NormalKey <ret> dbgp-expand-property
+    hook -once -always window WinSetOption filetype=.* %{ remove-hooks buffer dbgp-hooks }
+}
+
+declare-user-mode dbgp
+map global dbgp s -docstring 'start' ': dbgp-start<ret>'
+map global dbgp b -docstring 'create breakpoints' ': dbgp-toggle-breakpoint<ret>'
+map global dbgp r -docstring 'run/continue' ': dbgp run<ret>'
+map global dbgp n -docstring 'step over' ': dbgp step_over<ret>'
+map global dbgp i -docstring 'step into' ': dbgp step_into<ret>'
+map global dbgp c -docstring 'view context (variables)' ': dbgp-get-context<ret>'
+map global dbgp v -docstring 'view property (variable)' ': dbgp-get-property '
+map global dbgp t -docstring 'status' ': dbgp status<ret>'
+map global dbgp a -docstring 'toggle autojump' ': dbgp-toggle-autojump<ret>'
+map global dbgp q -docstring 'stop' ': dbgp-stop<ret>'
+map global dbgp . -docstring 'lock' ': enter-user-mode -lock dbgp<ret>'
