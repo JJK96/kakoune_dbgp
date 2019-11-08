@@ -49,7 +49,8 @@ addhl shared/dbgp group -passes move
 addhl shared/dbgp/ flag-lines DbgpLocation dbgp_location_flag
 addhl shared/dbgp/ flag-lines DbgpBreakpoint dbgp_breakpoints_flags
 
-def dbgp-start %{
+def -docstring 'listen for an incoming connection from the debuggin engine' \
+dbgp-start %{
     evaluate-commands %sh{
         if $kak_opt_dbgp_started; then
             # a previous session was ongoing, stop it and clean the options
@@ -75,7 +76,8 @@ def dbgp-start %{
     addhl global/dbgp-ref ref -passes move dbgp
 }
 
-def dbgp-stop %{
+def -docstring 'exit debugging session' \
+dbgp-stop %{
     nop %sh{
         if $kak_opt_dbgp_started; then
             echo "exit()" > "$kak_opt_dbgp_dir"/input_pipe
@@ -96,8 +98,8 @@ def dbgp-stop %{
     rmhooks global dbgp-ref
 }
 
-# if execution is stopped, jump to the location 
-def dbgp-jump-to-location %{
+def -docstring 'if execution is stopped, jump to the location' \
+dbgp-jump-to-location %{
     try %{ eval %sh{
         eval set -- "$kak_opt_dbgp_location_info"
         [ $# -eq 0 ] && exit
@@ -107,10 +109,11 @@ def dbgp-jump-to-location %{
     }}
 }
 
-# Forward the first argument as a command to the debugging engine
-# $1 = command and arguments
-# $2 = extra info needed by the python script (used for example by dbgp-get-property to give python the indentation level)
-def dbgp -params 1..2 %{
+def -docstring "dbgp %{<command> [arguments] [ -- DATA ]} [extra info]
+Forward the first argument as a command to the debugging engine
+$1 = dbgp command and arguments
+$2 = extra info needed by the python script (used for example by dbgp-get-property to give python the indentation level)" \
+dbgp -params 1..2 %{
     eval %sh{
         echo "$kak_client $2 $1" > "$kak_opt_dbgp_dir"/input_pipe
     }
@@ -120,8 +123,8 @@ def dbgp-set-breakpoint    %{ dbgp-breakpoint-impl false true }
 def dbgp-clear-breakpoint  %{ dbgp-breakpoint-impl true false }
 def dbgp-toggle-breakpoint %{ dbgp-breakpoint-impl true true }
 
-# get the context (variables) at the cursor location  
-def dbgp-get-context %{
+def -docstring "get the context (variables) at the cursor location" \
+dbgp-get-context %{
     evaluate-commands -try-client %opt{toolsclient} %{
         dbgp-create-context-buffer
         dbgp context_get
@@ -129,8 +132,8 @@ def dbgp-get-context %{
     try %{focus %opt{toolsclient}}
 }
 
-# get the content of a variable in the context of the cursor location  
-def dbgp-get-property -params 1 %{
+def -docstring "get the content of a variable in the context of the cursor location" \
+dbgp-get-property -params 1 %{
     evaluate-commands -try-client %opt{toolsclient} %{
         dbgp-create-context-buffer
         dbgp "property_get -n %arg{1}"
@@ -138,8 +141,8 @@ def dbgp-get-property -params 1 %{
     try %{focus %opt{toolsclient}}
 }
 
-# Create or select the buffer for pasting the variables in context
-def -hidden dbgp-create-context-buffer %{
+def -docstring "Create or select the buffer for pasting the variables in context" \
+dbgp-create-context-buffer -hidden %{
     edit -scratch *dbgp-context*
     set-option buffer filetype dbgp
     # Select the buffer so that all contents are replaced instead of a single line

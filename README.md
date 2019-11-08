@@ -9,11 +9,20 @@ I only had to implement the communication between the debugging engine and kakou
 
 ### Dependencies
 
-kakoune
-python3
+* kakoune
+* python3
 
 ### Plug.kak (recommended)
+
 Use [plug.kak](https://github.com/andreyorst/plug.kak) to install this plugin
+
+Example
+```
+plug 'jjk96/kakoune-dbgp' %{
+    map global user x -docstring 'dbgp' ': enter-user-mode dbgp<ret>'
+    dbgp-enable-autojump
+}
+```
 
 ### Manually
 Add `dbgp.kak` to your autoload dir: `~/.config/kak/autoload/`, or source it manually.
@@ -40,6 +49,7 @@ The script provides commands for the most common operations
 | kakoune command | Description |
 | --- |  --- |
 | `dbgp-start` | listen for an incoming connection from the debuggin engine |
+| `dbgp-stop` | exit debugging session|
 | `dbgp step_into` | execute the next line, entering the function if applicable (step in) |
 | `dbgp step_over` | execute the next line of the current function (step over)|
 | `dbgp run` | start/continue execution until the next breakpoint |
@@ -57,7 +67,7 @@ The `dbgp-{enable,disable,toggle}-autojump` commands let you control if the curr
 The command `dbgp-get-context` or `dbgp-get-property <variable>` can be used to view variables in the current context.
 Those commands open a new buffer with all the variables (in the case of `dbgp-get-context`) or the specified variable in the case of `dbgp-get-property <variable>`.
 
-A variable with children (indicated by ` > <#children>` at the end of the line) can be expanded by hitting `<ret>` while on that line. 
+A variable with children (indicated by ` > #children` at the end of the line) can be expanded by hitting `<ret>` while on that line. 
 It can be collapsed by using `u` to undo the expansion
 
 ## Extending the script
@@ -94,7 +104,7 @@ set global modelinefmt '%val{bufname} %val{cursor_line}:%val{cursor_char_column}
 ```
 
 To setup "standard" debugger shortcuts a custom usermode is created.
-See [dbgp.kak](https://github.com/JJK96/kakoune_dbgp/blob/master/dbgp.kak#L392)
+See [dbgp.kak](https://github.com/JJK96/kakoune_dbgp/blob/f1f95b18750c9e31eb11b2a582ee14bb0ec517f1/dbgp.kak#L400)
 
 ### Inner workings
 
