@@ -22,11 +22,7 @@ decl bool dbgp_program_running false
 # the debugged program is currently running, but stopped
 decl bool dbgp_program_stopped false
 # Whether autojump should be enabled
-decl str dbgp_autojump true
-# if not empty, contains the name of client in which the autojump is performed
-decl str dbgp_autojump_client
-# if not empy, contains the name of client in which context (variables) is showed
-decl str dbgp_context_client
+decl bool dbgp_autojump true
 # if not empty, contains the name of client in which the value is printed
 # set by default to the client which started the session
 decl str dbgp_print_client
@@ -68,11 +64,6 @@ def dbgp-start %{
             mkdir -p $kak_opt_dbgp_dir
             mkfifo "$kak_opt_dbgp_dir"/input_pipe
             ( tail -f "$kak_opt_dbgp_dir"/input_pipe | python $kak_opt_dbgp_source/dbgp_client.py $kak_opt_dbgp_port $kak_session $kak_client > /tmp/test 2>&1 ) >/dev/null 2>&1 </dev/null &
-        fi
-    }
-    eval %sh{
-        if $kak_opt_dbgp_autojump; then
-            echo "dbgp-enable-autojump"
         fi
     }
     set global dbgp_started true
@@ -152,20 +143,19 @@ decl -hidden str dbgp_expression_demanded
 
 def dbgp-enable-autojump %{
     set global dbgp_autojump true
-    set global dbgp_autojump_client %val{client}
-    dbgp-set-indicator-from-current-state
 }
+
 def dbgp-disable-autojump %{
     set global dbgp_autojump false
-    set global dbgp_autojump_client ""
-    dbgp-set-indicator-from-current-state
 }
+
 def dbgp-toggle-autojump %{
-    try %{
-        eval %sh{ [ -z "$kak_opt_dbgp_autojump_client" ] && printf fail }
-        dbgp-disable-autojump
-    } catch %{
-        dbgp-enable-autojump
+    evaluate-commands %sh{
+        if $kak_opt_dbgp_autojump; then
+            echo "dbgp-disable-autojump"
+        else
+            echo "dbgp-enable-autojump"
+        fi
     }
 }
 
@@ -230,7 +220,6 @@ def -hidden dbgp-set-indicator-from-current-state %{
         a=$(
             [ "$kak_opt_dbgp_program_running" = true ] && printf '[running]'
             [ "$kak_opt_dbgp_program_stopped" = true ] && printf '[stopped]'
-            [ -n "$kak_opt_dbgp_autojump_client" ] && printf '[autojump]'
         )
         [ -n "$a" ] && printf "$a "
     }
@@ -277,7 +266,9 @@ def -hidden -params 2 dbgp-handle-break %{
     dbgp-set-indicator-from-current-state
     set global dbgp_location_info  %arg{1} %arg{2}
     dbgp-refresh-location-flag %arg{2}
-    try %{ eval -client %opt{dbgp_autojump_client} dbgp-jump-to-location }
+    evaluate-commands %sh{
+        [ "$kak_opt_dbgp_autojump" = true ] && echo 'eval -try-client %opt{jumpclient} dbgp-jump-to-location'
+    }
 }
 
 def -hidden dbgp-handle-stopped %{
