@@ -23,9 +23,6 @@ decl bool dbgp_program_running false
 decl bool dbgp_program_stopped false
 # Whether autojump should be enabled
 decl bool dbgp_autojump true
-# if not empty, contains the name of client in which the value is printed
-# set by default to the client which started the session
-decl str dbgp_print_client
 
 # contains all known breakpoints in this format:
 # id enabled line file id enabled line file  ...
@@ -123,13 +120,19 @@ def dbgp-clear-breakpoint  %{ dbgp-breakpoint-impl true false }
 def dbgp-toggle-breakpoint %{ dbgp-breakpoint-impl true true }
 
 def dbgp-get-context %{
-    dbgp-create-context-buffer
-    dbgp context_get
+    evaluate-commands -try-client %opt{toolsclient} %{
+        dbgp-create-context-buffer
+        dbgp context_get
+    }
+    try %{focus %opt{toolsclient}}
 }
 
 def dbgp-get-property -params 1 %{
-    dbgp-create-context-buffer
-    dbgp "property_get -n %arg{1}"
+    evaluate-commands -try-client %opt{toolsclient} %{
+        dbgp-create-context-buffer
+        dbgp "property_get -n %arg{1}"
+    }
+    try %{focus %opt{toolsclient}}
 }
 
 def -hidden dbgp-create-context-buffer %{
@@ -157,58 +160,6 @@ def dbgp-toggle-autojump %{
             echo "dbgp-enable-autojump"
         fi
     }
-}
-
-decl -hidden int backtrace_current_line
-
-def dbgp-backtrace %{
-    try %{
-        try %{ db *dbgp-backtrace* }
-        eval %sh{
-            [ "$kak_opt_dbgp_stopped" = false ] && printf fail
-            mkfifo "$kak_opt_dbgp_dir"/backtrace
-        }
-        dbgp-cmd '-stack-list-frames'
-        eval -try-client %opt{toolsclient} %{
-            edit! -fifo "%opt{dbgp_dir}/backtrace" *dbgp-backtrace*
-            set buffer backtrace_current_line 0
-            addhl buffer/ regex "^([^\n]*?):(\d+)" 1:cyan 2:green
-            addhl buffer/ line '%opt{backtrace_current_line}' default+b
-            map buffer normal <ret> ': dbgp-backtrace-jump<ret>'
-            hook -always -once buffer BufCloseFifo .* %{
-                nop %sh{ rm -f "$kak_opt_dbgp_dir"/backtrace }
-            }
-        }
-    }
-}
-
-def -hidden dbgp-backtrace-jump %{
-    eval -save-regs '/' %{
-        try %{
-            exec -save-regs '' 'xs^([^:]+):(\d+)<ret>'
-            set buffer backtrace_current_line %val{cursor_line}
-            eval -try-client %opt{jumpclient} "edit -existing %reg{1} %reg{2}"
-            try %{ focus %opt{jumpclient} }
-        }
-    }
-}
-
-def dbgp-backtrace-up %{
-    eval -try-client %opt{jumpclient} %{
-        buffer *dbgp-backtrace*
-        exec "%opt{backtrace_current_line}gk<ret>"
-        dbgp-backtrace-jump
-    }
-    try %{ eval -client %opt{toolsclient} %{ exec %opt{backtrace_current_line}g } }
-}
-
-def dbgp-backtrace-down %{
-    eval -try-client %opt{jumpclient} %{
-        buffer *dbgp-backtrace*
-        exec "%opt{backtrace_current_line}gj<ret>"
-        dbgp-backtrace-jump
-    }
-    try %{ eval -client %opt{toolsclient} %{ exec %opt{backtrace_current_line}g } }
 }
 
 # implementation details
@@ -425,17 +376,6 @@ def -hidden -params 1 dbgp-refresh-breakpoints-flags %{
             }
         }
     }
-}
-
-def -hidden dbgp-handle-print -params 1 %{
-    try %{
-        eval -buffer *dbgp-print* %{
-            reg '"' "%opt{dbgp_expression_demanded} == %arg{1}"
-            exec gep
-            try %{ exec 'ggs\n<ret>d' }
-        }
-    }
-    try %{ eval -client %opt{dbgp_print_client} 'info "%opt{dbgp_expression_demanded} == %arg{1}"' }
 }
 
 # clear all breakpoint information internal to kakoune
