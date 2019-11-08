@@ -64,7 +64,6 @@ def dbgp-start %{
         fi
     }
     set global dbgp_started true
-    set global dbgp_print_client %val{client}
     dbgp-set-indicator-from-current-state
     hook -group dbgp global BufOpenFile .* %{
         dbgp-refresh-location-flag %val{buffile}
@@ -97,6 +96,7 @@ def dbgp-stop %{
     rmhooks global dbgp-ref
 }
 
+# if execution is stopped, jump to the location 
 def dbgp-jump-to-location %{
     try %{ eval %sh{
         eval set -- "$kak_opt_dbgp_location_info"
@@ -107,8 +107,9 @@ def dbgp-jump-to-location %{
     }}
 }
 
+# Forward the first argument as a command to the debugging engine
 # $1 = command and arguments
-# $2 = extra info needed by the python script (usually none)
+# $2 = extra info needed by the python script (used for example by dbgp-get-property to give python the indentation level)
 def dbgp -params 1..2 %{
     eval %sh{
         echo "$kak_client $2 $1" > "$kak_opt_dbgp_dir"/input_pipe
@@ -119,6 +120,7 @@ def dbgp-set-breakpoint    %{ dbgp-breakpoint-impl false true }
 def dbgp-clear-breakpoint  %{ dbgp-breakpoint-impl true false }
 def dbgp-toggle-breakpoint %{ dbgp-breakpoint-impl true true }
 
+# get the context (variables) at the cursor location  
 def dbgp-get-context %{
     evaluate-commands -try-client %opt{toolsclient} %{
         dbgp-create-context-buffer
@@ -127,6 +129,7 @@ def dbgp-get-context %{
     try %{focus %opt{toolsclient}}
 }
 
+# get the content of a variable in the context of the cursor location  
 def dbgp-get-property -params 1 %{
     evaluate-commands -try-client %opt{toolsclient} %{
         dbgp-create-context-buffer
@@ -135,14 +138,13 @@ def dbgp-get-property -params 1 %{
     try %{focus %opt{toolsclient}}
 }
 
+# Create or select the buffer for pasting the variables in context
 def -hidden dbgp-create-context-buffer %{
     edit -scratch *dbgp-context*
     set-option buffer filetype dbgp
+    # Select the buffer so that all contents are replaced instead of a single line
     execute-keys \%
 }
-
-# dbgp doesn't tell us in its output what was the expression we asked for, so keep it internally for printing later
-decl -hidden str dbgp_expression_demanded
 
 def dbgp-enable-autojump %{
     set global dbgp_autojump true
@@ -164,6 +166,7 @@ def dbgp-toggle-autojump %{
 
 # implementation details
 
+# Update the status line indicator
 def -hidden dbgp-set-indicator-from-current-state %{
     set global dbgp_indicator %sh{
         [ "$kak_opt_dbgp_started" = false ] && exit
@@ -211,7 +214,7 @@ def dbgp-breakpoint-impl -hidden -params 2 %{
     }
 }
 
-
+# Handle breakpoint reached
 def -hidden -params 2 dbgp-handle-break %{
     set global dbgp_program_stopped true
     dbgp-set-indicator-from-current-state
@@ -222,12 +225,14 @@ def -hidden -params 2 dbgp-handle-break %{
     }
 }
 
+# Handle end of program
 def -hidden dbgp-handle-stopped %{
     set global dbgp_program_stopped true
     set global dbgp_program_running false
     dbgp-set-indicator-from-current-state
 }
 
+# Indicate that execution has begun
 def -hidden dbgp-handle-running %{
     set global dbgp_program_running true
     set global dbgp_program_stopped false
@@ -235,6 +240,7 @@ def -hidden dbgp-handle-running %{
     dbgp-clear-location
 }
 
+# Remove location info
 def -hidden dbgp-clear-location %{
     try %{ eval %sh{
         eval set -- "$kak_opt_dbgp_location_info"
@@ -315,6 +321,7 @@ def -hidden -params 1 dbgp-handle-context %{
     }
 }
 
+# Replace a parent variable by an expansion containing it and its direct children
 def -hidden dbgp-expand-property %{
     # Reduce to a single selection
     execute-keys <space>
@@ -384,6 +391,7 @@ def -hidden dbgp-clear-breakpoints %{
     set global dbgp_breakpoints_info
 }
 
+# Hook for expanding variables
 hook global WinSetOption filetype=dbgp %{
     hook buffer -group dbgp-hooks NormalKey <ret> dbgp-expand-property
     hook -once -always window WinSetOption filetype=.* %{ remove-hooks buffer dbgp-hooks }
@@ -391,7 +399,7 @@ hook global WinSetOption filetype=dbgp %{
 
 declare-user-mode dbgp
 map global dbgp s -docstring 'start' ': dbgp-start<ret>'
-map global dbgp b -docstring 'create breakpoints' ': dbgp-toggle-breakpoint<ret>'
+map global dbgp b -docstring 'toggle breakpoints' ': dbgp-toggle-breakpoint<ret>'
 map global dbgp r -docstring 'run/continue' ': dbgp run<ret>'
 map global dbgp n -docstring 'step over' ': dbgp step_over<ret>'
 map global dbgp i -docstring 'step into' ': dbgp step_into<ret>'

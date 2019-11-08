@@ -1,126 +1,108 @@
-# kakoune-gdb
+# kakoune-dbgp
 
-[kakoune](http://kakoune.org) plugin for gdb integration.
+[kakoune](http://kakoune.org) plugin for [dbgp](https://xdebug.org/docs/dbgp) integration (i.e. [xdebug](https://xdebug.org) integration).
 
-[![demo](https://asciinema.org/a/164340.png)](https://asciinema.org/a/164340)
+Largely based on the excelent work by Olivier Perret: [kakoune-gdb](https://github.com/occivink/kakoune-gdb)  
+I only had to implement the communication between the debugging engine and kakoune instead of having to things like updating line-flags and jumping to the execution location.
 
 ## Setup
 
-Add `gdb.kak` to your autoload dir: `~/.config/kak/autoload/`, or source it manually.
+### Dependencies
 
-You need at least Kakoune v2019.01.20. In addition, this script has hard dependencies on `gdb` (>= 7.12), `socat`, `perl` as well as the usual POSIX environment. There is also on optional dependency on `rr`.
+kakoune
+python3
+
+### Plug.kak (recommended)
+Use [plug.kak](https://github.com/andreyorst/plug.kak) to install this plugin
+
+### Manually
+Add `dbgp.kak` to your autoload dir: `~/.config/kak/autoload/`, or source it manually.
+Adapt the path for the python executable in `dbgp.kak` to point to the correct location.
 
 ## Usage
 
-### Interfacing with gdb
+### Interfacing with a dbgp debugging engine
 
-The first step in using the script is to connect kakoune and gdb together.
+The first step in using the script is to connect kakoune and a dbgp debugging engine together.
 There are multiple ways to do this, detailed below:
 
-#### Starting a gdb session
+#### Starting a dbgp session
 
-If you wish to start a new debugging session, you should call `gdb-session-new`. A new gdb instance will be started, already connected to kakoune.
-Any additional command parameters will be passed to gdb (in particular, the executable you wish to debug).
+If you wish to start a new debugging session, you should call `dbgp-start`. 
+A dbgp IDE session will be started which can be used to connect to by a dbgp debugger engine 
 
-If you wish to use a different program than `gdb` (for example a wrapper script like `rust-gdb`), you can set the `gdb_program` option.
+### Communicating with the debuggin engine 
 
-#### Using rr
+Once kakoune is connected to the debugging engine, it can be communicated with through the `dbgp` kakoune command.
+Kakoune will then be updated in real-time to show the current state of the debugging engine (current line, breakpoints).  
+The script provides commands for the most common operations 
 
-If you use [rr](http://rr-project.org/), you can call `rr-session-new`. A new gdb instance will be started with the latest rr recording.
+| kakoune command | Description |
+| --- |  --- |
+| `dbgp-start` | listen for an incoming connection from the debuggin engine |
+| `dbgp step_into` | execute the next line, entering the function if applicable (step in) |
+| `dbgp step_over` | execute the next line of the current function (step over)|
+| `dbgp run` | start/continue execution until the next breakpoint |
+| `dbgp-jump-to-location` | if execution is stopped, jump to the location |
+| `dbgp-set-breakpoint` | set a breakpoint at the cursor location |
+| `dbgp-clear-breakpoint` | remove any breakpoints at the cursor location |
+| `dbgp-toggle-breakpoint` | remove or set a breakpoint at the cursor location|
+| `dbgp-get-context` | get the context (variables) at the cursor location |
+| `dbgp-get-property` | get the content of a variable in the context of the cursor location |
 
-#### Connecting to an existing session
+The `dbgp-{enable,disable,toggle}-autojump` commands let you control if the current client should jump to the current location when execution is stopped.
 
-If you already have a running session of gdb but want to make kakoune aware of it, call `gdb-session-connect`. The infobox will show you a command that you should call in gdb directly. Once that is done, kakoune will be connected to gdb and all pre-existing gdb state will be shown.  
-**Warning**: for this to work properly, the `mi-async` gdb variable must be set to `on` BEFORE the debugged program has been started.
+### View context (variables)
 
-### Controlling gdb
+The command `dbgp-get-context` or `dbgp-get-property <variable>` can be used to view variables in the current context.
+Those commands open a new buffer with all the variables (in the case of `dbgp-get-context`) or the specified variable in the case of `dbgp-get-property <variable>`.
 
-Once kakoune is connected to gdb, gdb can be controlled normally from its REPL or by issuing commands from kakoune's side.  
-Kakoune will then be updated in real-time to show the current state of gdb (current line, breakpoints and whether they are enabled).  
-The script provides commands for the most common operations; complex ones should be done in the gdb REPL directly.
+A variable with children (indicated by ` > <#children>` at the end of the line) can be expanded by hitting `<ret>` while on that line. 
+It can be collapsed by using `u` to undo the expansion
 
-| kakoune command | gdb equivalent | Description |
-| --- | --- | --- |
-| `gdb-run` | `run` | start the program |
-| `gdb-start` | `start` | start the program and pause right away |
-| `gdb-step` | `step` | execute the next line, entering the function if applicable (step in) |
-| `gdb-next` | `next` | execute the next line of the current function (step over)|
-| `gdb-finish` | `finish` | continue execution until the end of the current function (step out)|
-| `gdb-continue` | `continue` | continue execution until the next breakpoint |
-| `gdb-jump-to-location` | - | if execution is stopped, jump to the location |
-| `gdb-set-breakpoint` | `break` | set a breakpoint at the cursor location |
-| `gdb-clear-breakpoint` | `clear` | remove any breakpoints at the cursor location |
-| `gdb-toggle-breakpoint` | - | remove or set a breakpoint at the cursor location|
-| `gdb-print` | `print` | print the value of the currently selected expression in an infobox (and in the buffer `*gdb-print*` if it exists) |
-| `gdb-backtrace` | `backtrace` | show the callstack in a scratch buffer |
+## Extending the script
 
-The backtrace view can be navigated using `<ret>` to jump to the selected function.
-
-The `gdb-{enable,disable,toggle}-autojump` commands let you control if the current client should jump to the current location when execution is stopped.
-
-### Extending the script
-
-This script can be extended by defining your own commands. `gdb-cmd` is provided for that purpose: it simply forwards its arguments to the gdb process. Some of the predefined commands are defined like that:
-```
-define-command gdb-run -params ..    %{ gdb-cmd -exec-run %arg{@} }
-define-command gdb-start -params ..  %{ gdb-cmd -exec-run --start %arg{@} }
-define-command gdb-step              %{ gdb-cmd -exec-step }
-define-command gdb-next              %{ gdb-cmd -exec-next }
-define-command gdb-finish            %{ gdb-cmd -exec-finish }
-define-command gdb-continue          %{ gdb-cmd -exec-continue }
-```
+This script can be extended by defining your own commands. `dbgp` is provided for that purpose: it simply forwards its arguments to the debugging engine. 
+Some of the predefined commands are defined like that as shown above.
 
 You can also use the existing options to further refine your commands. Some of these are read-only (`[R]`), some can also be written to (`[RW]`).
-* `gdb_started`[bool][R]        : true if a debugging session has been started
-* `gdb_program_running`[bool][R]: true if the debugged program is currently running (stopped or not)
-* `gdb_program_stopped`[bool][R]: true if the debugged program is currently running, and stopped
-* `gdb_autojump_client`[str][RW]: if autojump is enabled, the name of the client in which the jump is performed
-* `gdb_print_client`[str][RW]   : the name of the client in which the value is printed
-* `gdb_location_info`[str][R]   : if running and stopped, contains the location in the format `line` `file`
-* `gdb_breakpoints_info`[str][R]: contains all known breakpoints in the format `id1` `enabled1` `line1` `file1` `id2` `enabled2` `line2` `file2` ...
+* `dbgp_started`[bool][R]        : true if a debugging session has been started
+* `dbgp_program_running`[bool][R]: true if the debugged program is currently running (stopped or not)
+* `dbgp_program_stopped`[bool][R]: true if the debugged program is currently running, and stopped
+* `dbgp_autojump`[bool][RW]      : true if autojump is enabled
+* `dbgp_location_info`[str][R]   : if running and stopped, contains the location in the format `line` `file`
+* `dbgp_breakpoints_info`[str][R]: contains all known breakpoints in the format `id1` `enabled1` `line1` `file1` `id2` `enabled2` `line2` `file2` ...
 
 ### Customization
 
 The gutter symbols can be modified by changing the values of these options: 
 ```
-gdb_breakpoint_active_symbol
-gdb_breakpoint_inactive_symbol
-gdb_location_symbol
+dbgp_breakpoint_active_symbol
+dbgp_breakpoint_inactive_symbol
+dbgp_location_symbol
 ```
 as well as their associated faces:
 ```
-GdbBreakpoint
-GdbLocation
+DbgpBreakpoint
+DbgpLocation
 ```
 
-It is possible to show in the modeline the status of the plugin using the option `gdb_indicator`. In the demo, I use:
+It is possible to show in the modeline the status of the plugin using the option `dbgp_indicator`. 
+An example:
 ```
-set global modelinefmt '%val{bufname} %val{cursor_line}:%val{cursor_char_column} {{context_info}} {{mode_info}} {red,default}%opt{gdb_indicator}{default,default}- %val{client}@[%val{session}]'
+set global modelinefmt '%val{bufname} %val{cursor_line}:%val{cursor_char_column} {{context_info}} {{mode_info}} {red,default}%opt{dbgp_indicator}{default,default}- %val{client}@[%val{session}]'
 ```
 
-To setup "standard" debugger shortcuts, you can use the following snippet:
-```
-hook global GlobalSetOption gdb_started=true %{
-    map global normal <f10>   ': gdb-next<ret>'
-    map global normal <f11>   ': gdb-step<ret>'
-    map global normal <s-f11> ': gdb-finish<ret>'
-    map global normal <f9>    ': gdb-toggle-breakpoint<ret>'
-    map global normal <f5>    ': gdb-continue<ret>'
-}
-hook global GlobalSetOption gdb_started=false %{
-    unmap global normal <f10>   ': gdb-next<ret>'
-    unmap global normal <f11>   ': gdb-step<ret>'
-    unmap global normal <s-f11> ': gdb-finish<ret>'
-    unmap global normal <f9>    ': gdb-toggle-breakpoint<ret>'
-    unmap global normal <f5>    ': gdb-continue<ret>'
-}
-```
+To setup "standard" debugger shortcuts a custom usermode is created.
+See [dbgp.kak](https://github.com/JJK96/kakoune_dbgp/blob/master/dbgp.kak#L392)
+
+### Inner workings
+
+A python program is used to forward dbgp commands from kakoune to the debugging engine and to interpret the XML response into commands that will be executed in kakoune.
 
 ## TODO
 
-* set temporary/conditional breakpoints
-* handle up/down, and moving the current frame from the backtrace buffer
-
-## License
-
-Unlicense
+* support other commands of the dbgp protocol
+    * breakpoint modification 
+    * evaluation of expressions
+* support expanding variable children with multiple cursors at the same time
