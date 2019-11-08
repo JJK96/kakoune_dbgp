@@ -2,12 +2,13 @@ import socket
 import sys
 import threading
 import _thread
-import xml.etree.ElementTree as ET
 import base64
-from xml_format import *
+from parsing import *
 import kakoune as kak
 
 i = 0
+# Save unanswered requests, key=transaction_id, value=request
+requests = {}
 
 def usage():
     print("usage: {} <port> <kakoune_session> <kakoune_client>".format(sys.argv[0]))
@@ -25,9 +26,12 @@ except:
 
 def handle_response(response):
     kak.info(response)
-    tree = ET.fromstring(response)
+    tree = parse_response(response)
     pp1(tree)
     if 'command' in tree.attrib:
+        transaction_id = tree.attrib['transaction_id']
+        request = requests[int(transaction_id)]
+        print(request)
         if tree.attrib['command'] == 'property_get':
             if len(tree) > 0:
                 string = pp(tree[0])
@@ -35,6 +39,11 @@ def handle_response(response):
         elif tree.attrib['command'] == 'context_get':
             for c in tree:
                 kak.info(pp(c))
+        elif tree.attrib['command'] == 'breakpoint_set':
+            active = True
+            line = request['-n']
+            filename = request['-f']
+            kak.handle_breakpoint_created(transaction_id, active, line, filename)
 
 def receive(conn):
     response = bytes()
@@ -50,11 +59,13 @@ def receive(conn):
             response = bytes()
 
 def send(conn, request):
-    global i
+    global i, requests
+    requests[i] = parse_request(request)
+    print(requests)
     request += " -i " + str(i) + '\x00'
-    i += 1
     request = bytes(request, 'utf-8')
     conn.send(request)
+    i += 1
 
 def handle_stdin(conn):
     for line in sys.stdin:

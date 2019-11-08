@@ -1,7 +1,6 @@
 # override to allow starting wrapper scripts
 # they must be compatible with dbgp arguments
 declare-option -hidden str dbgp_source %sh{echo "${kak_source%/*}"}
-decl str dbgp_program "debugclient"
 
 # script summary:
 # a long running shell process starts a dbgp session (or connects to an existing one) and handles input/output
@@ -78,7 +77,7 @@ def dbgp-start %{
         dbgp-refresh-breakpoints-flags %val{buffile}
     }
     hook -group dbgp global KakEnd .* %{
-        dbgp-session-stop
+        dbgp-stop
     }
     addhl global/dbgp-ref ref -passes move dbgp
 }
@@ -256,20 +255,20 @@ def dbgp-breakpoint-impl -hidden -params 2 %{
                     eval set -- "$kak_opt_dbgp_breakpoints_info"
                     while [ $# -ne 0 ]; do
                         if [ "$4" = "$kak_buffile" ] && [ "$3" = "$cursor_line" ]; then
-                            [ "$delete" = true ] && printf "%s breakpoint_remove -d %s\n" "$kak_client" "$1"
+                            [ "$delete" = true ] && printf "dbgp breakpoint_remove -d %s\n" "$1"
                             match_found="true"
                         fi
                         shift 4
                     done
                     if [ "$match_found" = false ] && [ "$create" = true ]; then
-                        printf "%s breakpoint_set -t line -f file://%s -n %s\n" "$kak_client" "$kak_buffile" "$cursor_line"
+                        printf "dbgp breakpoint_set -t line -f file://%s -n %s\n" "$kak_buffile" "$cursor_line"
                     fi
                 done
             )
             if [ "$kak_opt_dbgp_program_running" = false ] ||
                 [ "$kak_opt_dbgp_program_stopped" = true ]
             then
-                printf "%s\n" "$commands" > "$kak_opt_dbgp_dir"/input_pipe
+                printf "%s\n" "$commands"
             else
                 printf "set global dbgp_pending_commands '%s'" "$commands"
             fi
@@ -315,7 +314,7 @@ def -hidden dbgp-process-pending-commands %{
             printf fail
             exit
         fi
-        printf "%s\n" "$kak_opt_dbgp_pending_commands" > "$kak_opt_dbgp_dir"/input_pipe
+        printf "%s\n" "$kak_opt_dbgp_pending_commands"
     }
     set global dbgp_pending_commands ""
 }
@@ -356,6 +355,7 @@ def -hidden -params 1 dbgp-refresh-location-flag %{
 }
 
 def -hidden -params 4 dbgp-handle-breakpoint-created %{
+    # id_modified active line file 
     set -add global dbgp_breakpoints_info %arg{1} %arg{2} %arg{3} %arg{4}
     dbgp-refresh-breakpoints-flags %arg{4}
 }

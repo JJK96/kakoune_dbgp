@@ -23,3 +23,22 @@ def pp(tree, indent=0):
 def pp1(tree):
     parsed = parseString(ET.tostring(tree))
     print(unescape(parsed.toprettyxml(indent="\t")))
+
+def parse_response(response):
+    return ET.fromstring(response)
+
+def parse_request(request):
+    request_data = request.split('--')
+    if len(request_data) == 2:
+        request, data = request_data
+        data = data.lstrip()
+    else:
+        request = request_data[0]
+        data = None
+    request = request.split(' ')
+    parsed = {}
+    parsed['command'] = request.pop(0)
+    parsed['data'] = data
+    for i in range(0, len(request)-1, 2):
+        parsed[request[i]] = request[i+1]
+    return parsed
