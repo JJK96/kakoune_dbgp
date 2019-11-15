@@ -50,9 +50,9 @@ The script provides commands for the most common operations
 | --- |  --- |
 | `dbgp-start` | listen for an incoming connection from the debuggin engine |
 | `dbgp-stop` | exit debugging session|
-| `dbgp step_into` | execute the next line, entering the function if applicable (step in) |
-| `dbgp step_over` | execute the next line of the current function (step over)|
-| `dbgp run` | start/continue execution until the next breakpoint |
+| `dbgp-step_into` | execute the next line, entering the function if applicable (step in) |
+| `dbgp-step_over` | execute the next line of the current function (step over)|
+| `dbgp-run` | start/continue execution until the next breakpoint |
 | `dbgp-jump-to-location` | if execution is stopped, jump to the location |
 | `dbgp-set-breakpoint` | set a breakpoint at the cursor location |
 | `dbgp-clear-breakpoint` | remove any breakpoints at the cursor location |
@@ -60,6 +60,7 @@ The script provides commands for the most common operations
 | `dbgp-get-context` | get the context (variables) at the cursor location |
 | `dbgp-get-property` | get the content of a variable in the context of the cursor location |
 | `dbgp-eval` | evaluate the given expression in the context of the program |
+| `dbgp-stacktrace` | show a stacktrace |
 
 The `dbgp-{enable,disable,toggle}-autojump` commands let you control if the current client should jump to the current location when execution is stopped.
 
@@ -110,6 +111,8 @@ set global modelinefmt '%val{bufname} %val{cursor_line}:%val{cursor_char_column}
 
 To setup "standard" debugger shortcuts a custom usermode is created.
 See [dbgp.kak](https://github.com/JJK96/kakoune_dbgp/blob/f1f95b18750c9e31eb11b2a582ee14bb0ec517f1/dbgp.kak#L400)
+
+The actions to execute upon receiving a respons can be overridden by overriding the `dbgp-handle-*` commands.
 
 ### Inner workings
 

@@ -1,4 +1,5 @@
 import os
+from parsing import convert_filename
 
 session = None
 client = None
@@ -11,7 +12,7 @@ def debug(text):
 
 def handle_breakpoint_created(id_modified, active, line, filename):
     active = 1 if active else 0
-    filename = filename[7:]
+    filename = convert_filename(filename)
     send_cmd("dbgp-handle-breakpoint-created {} {} {} %{{{}}}".format(id_modified, active, line, filename))
 
 def handle_breakpoint_deleted(id_modified):
@@ -20,8 +21,14 @@ def handle_breakpoint_deleted(id_modified):
 def handle_running():
     send_cmd("dbgp-handle-running")
 
+def handle_eval(result):
+    send_cmd("dbgp-handle-eval %{{{}}}".format(result))
+
+def handle_stacktrace(result):
+    send_cmd("dbgp-handle-stacktrace %{{{}}}".format(result))
+
 def handle_break(line, filename):
-    filename = filename[7:]
+    filename = convert_filename(filename)
     send_cmd("dbgp-handle-break {} %{{{}}}".format(line, filename))
 
 def handle_stopped():
@@ -32,8 +39,8 @@ def show_context(variable):
     send_cmd("dbgp-handle-context %{{{}}}".format(variable))
 
 def send_cmd(cmd):
-    cmd = cmd.replace('$', r'\$')
-    cmd = "echo \"eval -client '{}' '{}'\" | kak -p {}".format(client, cmd, session)
+    cmd = cmd.replace("'", r"'\''")
+    cmd = "echo 'eval -client %{{{}}} %{{{}}}' | kak -p {}".format(client, cmd, session)
     print(cmd)
     os.system(cmd)
 

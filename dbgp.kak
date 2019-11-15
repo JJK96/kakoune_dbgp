@@ -98,6 +98,21 @@ dbgp-stop %{
     rmhooks global dbgp-ref
 }
 
+def -docstring 'run/continue execution' \
+dbgp-run %{
+    dbgp run
+}
+
+def -docstring 'step into' \
+dbgp-step-into %{
+    dbgp step_into
+}
+
+def -docstring 'step over' \
+dbgp-step-over %{
+    dbgp step_over
+}
+
 def -docstring 'if execution is stopped, jump to the location' \
 dbgp-jump-to-location %{
     try %{ eval %sh{
@@ -144,6 +159,16 @@ dbgp-get-property -params 1 %{
 def -docstring "Evaluate an experssion in the context of the program" \
 dbgp-eval -params 1 %{
     dbgp "eval -- %arg{1}"
+}
+
+def -docstring 'get the current status' \
+dbgp-status %{
+    dbgp status
+}
+
+def -docstring 'show a stacktrace' \
+dbgp-stacktrace %{
+    dbgp stack_get
 }
 
 def -docstring "Create or select the buffer for pasting the variables in context" \
@@ -329,6 +354,16 @@ def -hidden -params 1 dbgp-handle-context %{
     }
 }
 
+# Do something with eval result
+def -hidden -params 1 dbgp-handle-eval %{
+    info %arg{1}
+}
+
+# Do something with stacktrace result (stack_get)
+def -hidden -params 1 dbgp-handle-stacktrace %{
+    info %arg{1}
+}
+
 # Replace a parent variable by an expansion containing it and its direct children
 def -hidden dbgp-expand-property %{
     # Reduce to a single selection
@@ -408,12 +443,13 @@ hook global WinSetOption filetype=dbgp %{
 declare-user-mode dbgp
 map global dbgp s -docstring 'start' ': dbgp-start<ret>'
 map global dbgp b -docstring 'toggle breakpoints' ': dbgp-toggle-breakpoint<ret>'
-map global dbgp r -docstring 'run/continue' ': dbgp run<ret>'
-map global dbgp n -docstring 'step over' ': dbgp step_over<ret>'
-map global dbgp i -docstring 'step into' ': dbgp step_into<ret>'
+map global dbgp r -docstring 'run/continue' ': dbgp-run<ret>'
+map global dbgp n -docstring 'step over' ': dbgp-step-over<ret>'
+map global dbgp i -docstring 'step into' ': dbgp-step-into<ret>'
 map global dbgp c -docstring 'view context (variables)' ': dbgp-get-context<ret>'
 map global dbgp v -docstring 'view property (variable)' ': dbgp-get-property '
-map global dbgp t -docstring 'status' ': dbgp status<ret>'
+map global dbgp e -docstring 'eval' ': dbgp-eval '
+map global dbgp t -docstring 'status' ': dbgp-status<ret>'
 map global dbgp a -docstring 'toggle autojump' ': dbgp-toggle-autojump<ret>'
 map global dbgp q -docstring 'stop' ': dbgp-stop<ret>'
 map global dbgp . -docstring 'lock' ': enter-user-mode -lock dbgp<ret>'

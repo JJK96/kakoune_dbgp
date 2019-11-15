@@ -5,8 +5,8 @@ from html import unescape
 
 INDENT_SIZE = 2
 
-def pp(tree, indent=0):
-    pp1(tree)
+def format_variables(tree, indent=0):
+    print_request(tree)
     children = 'children' in tree.attrib and tree.attrib['children']
     text = None
     if tree.text:
@@ -28,10 +28,23 @@ def pp(tree, indent=0):
         (' > ' +tree.attrib['numchildren'] if children else '') + "\n"
 
     for child in tree:
-        string += pp(child, indent + INDENT_SIZE)
+        string += format_variables(child, indent + INDENT_SIZE)
     return string
 
-def pp1(tree):
+def format_stacktrace(stacktrace):
+    string = ""
+    for function in stacktrace:
+        if function.attrib['type'] == 'file':
+            level = function.attrib['level']
+            where = function.attrib['where']
+            lineno = function.attrib['lineno']
+            filename = convert_filename(function.attrib['filename'])
+            string += "{}: at {} ({}:{})\n".format(level, where, filename, lineno)
+        else:
+            string += ET.tostring(function) + "\n"
+    return string
+
+def print_request(tree):
     parsed = parseString(ET.tostring(tree))
     print(unescape(parsed.toprettyxml(indent="\t")))
 
@@ -56,3 +69,7 @@ def parse_request(request):
     for i in range(0, len(request)-1, 2):
         parsed[request[i]] = request[i+1]
     return parsed
+
+def convert_filename(filename):
+    """ remove file:// """
+    return filename[7:]

@@ -29,7 +29,7 @@ except:
 def handle_response(response):
     kak.debug(response)
     tree = parse_response(response)
-    pp1(tree)
+    print_request(tree)
     if 'command' in tree.attrib:
         command = tree.attrib['command']
         if not 'transaction_id' in tree.attrib:
@@ -48,19 +48,19 @@ def handle_response(response):
                     indent = int(request['extra'])
                 else:
                     indent = 0
-                string = pp(tree[0], indent)
+                string = format_variables(tree[0], indent)
                 kak.show_context(string)
             return
         elif command == 'context_get':
             string = ""
             for c in tree:
-                string += pp(c)
+                string += format_variables(c)
             kak.show_context(string)
             return
         elif command == 'eval':
             if len(tree) > 0:
-                string = pp(tree[0])
-                kak.info(string)
+                string = format_variables(tree[0])
+                kak.handle_eval(string)
                 return
         elif command == 'breakpoint_set':
             active = True #TODO support inactive breakpoints
@@ -70,6 +70,9 @@ def handle_response(response):
             return
         elif command == 'breakpoint_remove':
             kak.handle_breakpoint_deleted(request['-d'])
+            return
+        elif command == 'stack_get':
+            kak.handle_stacktrace(format_stacktrace(tree))
             return
     if 'status' in tree.attrib:
         status = tree.attrib['status']
