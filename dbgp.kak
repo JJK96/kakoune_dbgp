@@ -61,7 +61,7 @@ dbgp-start %{
         if ! $kak_opt_dbgp_started; then
             mkdir -p $kak_opt_dbgp_dir
             mkfifo "$kak_opt_dbgp_dir"/input_pipe
-            ( tail -f "$kak_opt_dbgp_dir"/input_pipe | python $kak_opt_dbgp_source/dbgp_client.py $kak_opt_dbgp_port $kak_session $kak_client > /tmp/test 2>&1 ) >/dev/null 2>&1 </dev/null &
+            ( tail -f "$kak_opt_dbgp_dir"/input_pipe | python $kak_opt_dbgp_source/dbgp_client.py $kak_opt_dbgp_port $kak_session $kak_client ) >/dev/null 2>&1 </dev/null &
         fi
     }
     set global dbgp_started true
@@ -176,7 +176,7 @@ dbgp-create-context-buffer -hidden %{
     edit -scratch *dbgp-context*
     set-option buffer filetype dbgp
     # Select the buffer so that all contents are replaced instead of a single line
-    execute-keys \%
+    execute-keys \%d
 }
 
 def dbgp-enable-autojump %{
@@ -347,6 +347,15 @@ def -hidden -params 4 dbgp-handle-breakpoint-modified-cmd %{
 
 # Show the current context (variables) in the context buffer
 def -hidden -params 1 dbgp-handle-context %{
+    # User should already be in the context buffer
+    evaluate-commands -save-regs '"' -draft %{
+        set-register dquote %arg{1}
+        execute-keys <a-P>j
+    }
+}
+
+# Show the current context (variables) in the context buffer
+def -hidden -params 1 dbgp-handle-property %{
     # User should already be in the context buffer and have the text to be replaced selected
     evaluate-commands -save-regs '"' -draft %{
         set-register dquote %arg{1}

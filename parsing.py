@@ -6,7 +6,7 @@ from html import unescape
 INDENT_SIZE = 2
 
 def format_variables(tree, indent=0):
-    print_request(tree)
+    print_response(tree)
     children = 'children' in tree.attrib and tree.attrib['children']
     text = None
     if tree.text:
@@ -44,32 +44,48 @@ def format_stacktrace(stacktrace):
             string += ET.tostring(function) + "\n"
     return string
 
-def print_request(tree):
+def print_response(tree):
     parsed = parseString(ET.tostring(tree))
     print(unescape(parsed.toprettyxml(indent="\t")))
 
 def parse_response(response):
     return ET.fromstring(response)
 
-def parse_request(request):
-    request_data = request.split(' -- ')
-    if len(request_data) == 2:
-        request, data = request_data
-        data = data.lstrip()
-    else:
-        request = request_data[0]
-        data = None
-    request = request.split(' ')
-    parsed = {}
-    parsed['client'] = request.pop(0)
-    parsed['extra'] = request.pop(0)
-    parsed['cmd_string'] = ' '.join(request)
-    parsed['command'] = request.pop(0)
-    parsed['data'] = data
-    for i in range(0, len(request)-1, 2):
-        parsed[request[i]] = request[i+1]
-    return parsed
-
 def convert_filename(filename):
     """ remove file:// """
     return filename[7:]
+
+class Request:
+    def __init__(self, request_string):
+        self.parse(request_string)
+
+    def parse(self, request):
+        """ from string to class properties """
+        request_data = request.split(' -- ')
+        if len(request_data) == 2:
+            request, data = request_data
+            data = data.lstrip()
+        else:
+            request = request_data[0]
+            data = None
+        request = request.split(' ')
+        self.client = request.pop(0)
+        self.extra = request.pop(0)
+        self.command = request.pop(0)
+        self.data = data
+        self.args = {}
+        for i in range(0, len(request)-1, 2):
+            self.args[request[i]] = request[i+1]
+
+    def compose(self, transaction_id):
+        """ from dict to string """
+        cmd_string = self.command + " -i " + str(transaction_id)
+        for arg, val in self.args.items():
+            cmd_string += ' ' + arg + ' ' + val
+        if self.data:
+            cmd_string += ' -- ' + base64.b64encode(self.data.encode()).decode()
+        cmd_string += '\x00'
+        return cmd_string
+
+    def __str__(self):
+        return str(self.__dict__)

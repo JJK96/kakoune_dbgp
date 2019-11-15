@@ -1,5 +1,6 @@
 import os
 from parsing import convert_filename
+from dbgp_client import DEBUG
 
 session = None
 client = None
@@ -8,7 +9,8 @@ def info(text):
     send_cmd("info %{{{}}}".format(text))
 
 def debug(text):
-    send_cmd("echo -debug %{{{}}}".format(text))
+    if DEBUG:
+        send_cmd("echo -debug %{{{}}}".format(text))
 
 def handle_breakpoint_created(id_modified, active, line, filename):
     active = 1 if active else 0
@@ -34,9 +36,13 @@ def handle_break(line, filename):
 def handle_stopped():
     send_cmd("dbgp-handle-stopped")
 
-def show_context(variable):
+def handle_context(variable):
     # Show the current context (variables) in the context buffer
     send_cmd("dbgp-handle-context %{{{}}}".format(variable))
+
+def handle_property(variable):
+    # Show the current context (variables) in the context buffer
+    send_cmd("dbgp-handle-property %{{{}}}".format(variable))
 
 def send_cmd(cmd):
     cmd = cmd.replace("'", r"'\''")
