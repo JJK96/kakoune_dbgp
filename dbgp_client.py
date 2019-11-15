@@ -84,13 +84,22 @@ def handle_response(response):
     if 'status' in tree.attrib:
         status = tree.attrib['status']
         if status == 'break':
-            line = tree[0].attrib['lineno']
-            filename = tree[0].attrib['filename']
-            kak.handle_break(line, filename)
+            if len(tree) > 0 \
+            and 'lineno' in tree[0].attrib \
+            and 'filename' in tree[0].attrib:
+                line = tree[0].attrib['lineno']
+                filename = tree[0].attrib['filename']
+                kak.handle_break(line, filename)
+            else:
+                debug(tree.attrib)
             return
         if status == 'stopping':
             kak.handle_stopped()
             return
+    if tree.tag.endswith('init'):
+        language = tree.attrib['language']
+        kak.info("{} debugger connected".format(language))
+        return
     kak.info(response)
 
 def receive(conn):
@@ -108,6 +117,7 @@ def receive(conn):
 
 def send(conn, request):
     global i
+    requests[i] = request
     cmd_string = request.compose(i)
     cmd = cmd_string.encode()
     conn.send(cmd)
@@ -125,7 +135,6 @@ def handle_stdin(conn):
         handle_request(conn, request)
 
 def handle_request(conn, request):
-    requests[i] = request
     kak.client = request.client
     command = request.command
     if command == 'run' or command.startswith('step'):

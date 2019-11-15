@@ -7,7 +7,7 @@ INDENT_SIZE = 2
 
 def format_variables(tree, indent=0):
     print_response(tree)
-    children = 'children' in tree.attrib and tree.attrib['children']
+    children = 'children' in tree.attrib and int(tree.attrib['children'])
     text = None
     if tree.text:
         text = tree.text
@@ -56,8 +56,11 @@ def convert_filename(filename):
     return filename[7:]
 
 class Request:
-    def __init__(self, request_string):
-        self.parse(request_string)
+    def __init__(self, request_string=None):
+        self.args = {}
+        self.data = None
+        if request_string:
+            self.parse(request_string)
 
     def parse(self, request):
         """ from string to class properties """
@@ -79,6 +82,7 @@ class Request:
 
     def compose(self, transaction_id):
         """ from dict to string """
+        assert hasattr(self, 'command')
         cmd_string = self.command + " -i " + str(transaction_id)
         for arg, val in self.args.items():
             cmd_string += ' ' + arg + ' ' + val
