@@ -109,7 +109,7 @@ dbgp-jump-to-location %{
     }}
 }
 
-def -docstring "dbgp %{<command> [arguments] [ -- DATA ]} [extra info]
+def -docstring "dbgp %%{<command> [arguments] [ -- DATA ]} [extra info]
 Forward the first argument as a command to the debugging engine
 $1 = dbgp command and arguments
 $2 = extra info needed by the python script (used for example by dbgp-get-property to give python the indentation level)" \
@@ -139,6 +139,11 @@ dbgp-get-property -params 1 %{
         dbgp "property_get -n %arg{1}"
     }
     try %{focus %opt{toolsclient}}
+}
+
+def -docstring "Evaluate an experssion in the context of the program" \
+dbgp-eval -params 1 %{
+    dbgp "eval -- %arg{1}"
 }
 
 def -docstring "Create or select the buffer for pasting the variables in context" \

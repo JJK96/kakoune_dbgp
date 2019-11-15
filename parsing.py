@@ -14,8 +14,17 @@ def pp(tree, indent=0):
         if 'encoding' in tree.attrib and tree.attrib['encoding'] == 'base64':
             text = base64.b64decode(bytes(tree.text, 'utf-8')).decode()
 
-    string = " "*indent + tree.attrib['fullname'] + \
-        (': ' + text if tree.text else '') + \
+    if 'fullname' in tree.attrib:
+        name = tree.attrib['fullname']
+    elif 'classname' in tree.attrib:
+        name = tree.attrib['classname']
+    elif 'name' in tree.attrib:
+        name = tree.attrib['name']
+    else:
+        name = ''
+    string = " "*indent + name + \
+        (': ' if name and text else '') + \
+        (text if text else '') + \
         (' > ' +tree.attrib['numchildren'] if children else '') + "\n"
 
     for child in tree:
@@ -30,7 +39,7 @@ def parse_response(response):
     return ET.fromstring(response)
 
 def parse_request(request):
-    request_data = request.split('--')
+    request_data = request.split(' -- ')
     if len(request_data) == 2:
         request, data = request_data
         data = data.lstrip()

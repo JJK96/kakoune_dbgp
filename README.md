@@ -59,6 +59,7 @@ The script provides commands for the most common operations
 | `dbgp-toggle-breakpoint` | remove or set a breakpoint at the cursor location|
 | `dbgp-get-context` | get the context (variables) at the cursor location |
 | `dbgp-get-property` | get the content of a variable in the context of the cursor location |
+| `dbgp-eval` | evaluate the given expression in the context of the program |
 
 The `dbgp-{enable,disable,toggle}-autojump` commands let you control if the current client should jump to the current location when execution is stopped.
 

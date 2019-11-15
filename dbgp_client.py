@@ -1,7 +1,6 @@
 import socket
 import sys
 import threading
-import _thread
 import base64
 from parsing import *
 import kakoune as kak
@@ -33,6 +32,9 @@ def handle_response(response):
     pp1(tree)
     if 'command' in tree.attrib:
         command = tree.attrib['command']
+        if not 'transaction_id' in tree.attrib:
+            kak.info(response)
+            return
         transaction_id = int(tree.attrib['transaction_id'])
         request = requests[transaction_id]
         del requests[transaction_id]
@@ -55,6 +57,11 @@ def handle_response(response):
                 string += pp(c)
             kak.show_context(string)
             return
+        elif command == 'eval':
+            if len(tree) > 0:
+                string = pp(tree[0])
+                kak.info(string)
+                return
         elif command == 'breakpoint_set':
             active = True #TODO support inactive breakpoints
             line = request['-n']
@@ -93,14 +100,15 @@ def send(conn, request):
     global i
     cmd_string = request['cmd_string'] + " -i " + str(i)
     if request['data']:
-        cmd_string += ' -- ' + request['data']
+        cmd_string += ' -- ' + base64.b64encode(request['data'].encode()).decode()
     cmd_string += '\x00'
-    cmd_string = bytes(cmd_string, 'utf-8')
-    conn.send(cmd_string)
-    i += 1
+    cmd = cmd_string.encode()
     command = request['command']
     if command == 'run' or command.startswith('step'):
         kak.handle_running()
+    conn.send(cmd)
+    print(cmd)
+    i += 1
 
 def handle_stdin(conn):
     global requests
