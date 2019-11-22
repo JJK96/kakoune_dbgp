@@ -6,7 +6,7 @@ from parsing import *
 import kakoune as kak
 
 # DEBUG
-DEBUG = True
+DEBUG = False
 DEBUG_OUTPUT = "/tmp/kakoune_dbgp_client"
 
 # Transaction ID
