@@ -6,7 +6,7 @@ from parsing import *
 import kakoune as kak
 
 # DEBUG
-DEBUG = False
+DEBUG = True
 DEBUG_OUTPUT = "/tmp/kakoune_dbgp_client"
 
 # Transaction ID
@@ -71,9 +71,10 @@ def handle_response(response):
                 return
         elif command == 'breakpoint_set':
             active = True #TODO support inactive breakpoints
-            line = request.args['-n']
-            filename = request.args['-f']
-            kak.handle_breakpoint_created(tree.attrib['id'], active, line, filename)
+            line = request.args.get('-n')
+            filename = request.args.get('-f')
+            if line and filename:
+                kak.handle_breakpoint_created(tree.attrib['id'], active, line, filename)
             return
         elif command == 'breakpoint_remove':
             kak.handle_breakpoint_deleted(request.args['-d'])
@@ -90,6 +91,9 @@ def handle_response(response):
                 line = tree[0].attrib['lineno']
                 filename = tree[0].attrib['filename']
                 kak.handle_break(line, filename)
+                exception = tree[0].attrib.get('exception')
+                if exception:
+                    kak.info(tree[0].text)
             else:
                 debug(tree.attrib)
             return
@@ -139,7 +143,14 @@ def handle_request(conn, request):
     command = request.command
     if command == 'run' or command.startswith('step'):
         kak.handle_running()
-    send(conn, request) 
+    send(conn, request)
+
+def init(conn):
+    request = Request()
+    request.command = "breakpoint_set"
+    request.args['-t'] = 'exception'
+    request.args['-x'] = '*'
+    send(conn, request)
 
 def debug(message):
     if DEBUG:
@@ -156,6 +167,7 @@ if __name__ == '__main__':
             t = threading.Thread(target=receive, args=(conn,))
             t.daemon = True
             t.start()
+            init(conn)
             handle_stdin(conn)
         finally:
             conn.close()
