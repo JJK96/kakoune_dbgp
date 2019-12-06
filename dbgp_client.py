@@ -90,10 +90,10 @@ def handle_response(response):
             and 'filename' in tree[0].attrib:
                 line = tree[0].attrib['lineno']
                 filename = tree[0].attrib['filename']
-                kak.handle_break(line, filename)
                 exception = tree[0].attrib.get('exception')
+                kak.handle_break(line, filename)
                 if exception:
-                    kak.info(tree[0].text)
+                    kak.info("{}: {}".format(exception, tree[0].text))
             else:
                 debug(tree.attrib)
             return
