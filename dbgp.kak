@@ -147,11 +147,18 @@ dbgp-get-context %{
     try %{focus %opt{toolsclient}}
 }
 
-def -docstring "get the content of a variable in the context of the cursor location" \
-dbgp-get-property -params 1 %{
-    evaluate-commands -try-client %opt{toolsclient} %{
-        dbgp-create-context-buffer
-        dbgp "property_get -n %arg{1}"
+def -docstring "dbgp-get-property [variable]
+get the content of a given variable (or the selections) in the context of the cursor location" \
+dbgp-get-property -params 0..1 %{
+    evaluate-commands -try-client %opt{toolsclient} %sh{
+        echo dbgp-create-context-buffer
+        if [ $# -eq 0 ]; then
+            eval set -- "$kak_quoted_selections"
+        fi
+        while [ $# -gt 0 ]; do
+            echo dbgp \"property_get -n "$1"\"
+            shift
+        done
     }
     try %{focus %opt{toolsclient}}
 }
@@ -351,15 +358,6 @@ def -hidden -params 1 dbgp-handle-context %{
     evaluate-commands -save-regs '"' -draft %{
         set-register dquote %arg{1}
         execute-keys <a-P>j
-    }
-}
-
-# Show the current context (variables) in the context buffer
-def -hidden -params 1 dbgp-handle-property %{
-    # User should already be in the context buffer and have the text to be replaced selected
-    evaluate-commands -save-regs '"' -draft %{
-        set-register dquote %arg{1}
-        execute-keys <a-x>R
     }
 }
 

@@ -40,10 +40,6 @@ def handle_context(variable):
     # Show the current context (variables) in the context buffer
     send_cmd("dbgp-handle-context %{{{}}}".format(variable))
 
-def handle_property(variable):
-    # Show the current context (variables) in the context buffer
-    send_cmd("dbgp-handle-property %{{{}}}".format(variable))
-
 def send_cmd(cmd):
     cmd = cmd.replace("'", r"'\''")
     cmd = "echo 'eval -client %{{{}}} %{{{}}}' | kak -p {}".format(client, cmd, session)

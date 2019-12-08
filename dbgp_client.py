@@ -56,7 +56,7 @@ def handle_response(response):
                 else:
                     indent = 0
                 string = format_variables(tree[0], indent)
-                kak.handle_property(string)
+                kak.handle_context(string)
             return
         elif command == 'context_get':
             string = ""
