@@ -163,9 +163,13 @@ dbgp-get-property -params 0..1 %{
     try %{focus %opt{toolsclient}}
 }
 
-def -docstring "Evaluate an experssion in the context of the program" \
-dbgp-eval -params 1 %{
-    dbgp "eval -- %arg{1}"
+def -docstring "dbgp-eval [variable]
+Evaluate the given experssion (or selection) in the context of the program" \
+dbgp-eval -params 0..1 %{
+    evaluate-commands %sh{
+        expr=${1:-$kak_selection}
+        echo dbgp \"eval -- "$expr"\"
+    }
 }
 
 def -docstring 'get the current status' \
