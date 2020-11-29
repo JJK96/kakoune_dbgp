@@ -150,7 +150,7 @@ def init(conn):
     request.command = "breakpoint_set"
     request.args['-t'] = 'exception'
     request.args['-x'] = '*'
-    send(conn, request)
+    # send(conn, request)
 
 def debug(message):
     if DEBUG:

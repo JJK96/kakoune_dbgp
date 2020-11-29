@@ -64,6 +64,8 @@ dbgp-start %{
             ( tail -f "$kak_opt_dbgp_dir"/input_pipe | python $kak_opt_dbgp_source/dbgp_client.py $kak_opt_dbgp_port $kak_session $kak_client ) >/dev/null 2>&1 </dev/null &
         fi
     }
+    info "Started DBGP IDE on port %opt{dbgp_port}
+Follow https://xdebug.org/docs/step_debug to connect to the DBGP IDE"
     set global dbgp_started true
     dbgp-set-indicator-from-current-state
     hook -group dbgp global BufOpenFile .* %{

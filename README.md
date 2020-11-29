@@ -35,10 +35,16 @@ Adapt the path for the python executable in `dbgp.kak` to point to the correct l
 The first step in using the script is to connect kakoune and a dbgp debugging engine together.
 There are multiple ways to do this, detailed below:
 
-#### Starting a dbgp session
+#### Starting a dbgp IDE
 
 If you wish to start a new debugging session, you should call `dbgp-start`. 
 A dbgp IDE session will be started which can be used to connect to by a dbgp debugger engine 
+The session runs on port 9000 by default, this can be configured using `%opt{dbgp_port}`.
+
+#### Connecting to the dbgp IDE
+
+Have a look at [XDebug's documentation](https://xdebug.org/docs/step_debug) on how to connect to an IDE.
+I use a browser extension myself to trigger XDebug to connect to the dbgp IDE.
 
 ### Communicating with the debuggin engine 
 
