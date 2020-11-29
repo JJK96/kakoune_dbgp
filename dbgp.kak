@@ -38,7 +38,7 @@ decl str dbgp_indicator
 # the directory containing the input fifo, pty object and backtrace
 decl -hidden str dbgp_dir "/tmp/kakoune_dbgp/%val{session}"
 
-decl str dbgp_port 9000
+decl str dbgp_port 9003
 
 # corresponding flags generated from the previous variables
 # these are only set on buffer scope

@@ -39,7 +39,7 @@ There are multiple ways to do this, detailed below:
 
 If you wish to start a new debugging session, you should call `dbgp-start`. 
 A dbgp IDE session will be started which can be used to connect to by a dbgp debugger engine 
-The session runs on port 9000 by default, this can be configured using `%opt{dbgp_port}`.
+The session runs on port 9003 by default, this can be configured using `%opt{dbgp_port}`.
 
 #### Connecting to the dbgp IDE
 
