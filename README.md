@@ -18,7 +18,7 @@ Use [plug.kak](https://github.com/andreyorst/plug.kak) to install this plugin
 
 Example
 ```
-plug 'jjk96/kakoune-dbgp' %{
+plug 'jjk96/kakoune_dbgp' %{
     map global user x -docstring 'dbgp' ': enter-user-mode dbgp<ret>'
     dbgp-enable-autojump
 }
