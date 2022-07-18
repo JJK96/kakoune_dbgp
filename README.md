@@ -1,5 +1,7 @@
 # kakoune-dbgp
 
+**_NOTE_**: You probably want to use [Debug Adapter Protocol](https://github.com/jdugan6240/kak-dap) it supports more languages and the Kakoune plug-in is actually supported.
+
 [kakoune](http://kakoune.org) plugin for [dbgp](https://xdebug.org/docs/dbgp) integration (i.e. [xdebug](https://xdebug.org) integration).
 
 Largely based on the excelent work by Olivier Perret: [kakoune-gdb](https://github.com/occivink/kakoune-gdb)  
